@@ -5,72 +5,28 @@
 #include <sstream>
 #include <vector>
 #include <unistd.h>
-
 #include <sys/wait.h>
-//#include <dirent.h>
 
 int historyCommand(std::vector<std::string>& command_list, std::vector<std::string>& command_history);
 void displayHistory(std::vector<std::string>& command_history, int num_of_latest_entries);
+int execute_command(std::vector<std::string>& command_list, std::vector<std::string>& os_path_list);
 
 void splitString(std::string text, char d, std::vector<std::string>& result);
 void vectorOfStringsToArrayOfCharArrays(std::vector<std::string>& list, char ***result);
 void freeArrayOfCharArrays(char **array, size_t array_length);
 
-int main (int argc, char **argv)
+int main(int argc, char **argv)
 {
-    // Get list of paths to binary executables
+    //Get list of paths to binary executables
     std::vector<std::string> os_path_list;
     char* os_path = getenv("PATH");
     splitString(os_path, ':', os_path_list);
 
-    
-    /************************************************************************************
-     *   Example code - remove in actual program                                        *
-     ************************************************************************************/
-    /*
-    // Shows how to loop over the directories in the PATH environment variable
-    int i = 0;
-
-    //std::string test_path = "/usr/bin";
-    //std::cout << test_path << "\n";
-
-    char *test_path = "/usr/games";
-
-    DIR *path;
-    path = opendir(test_path);
-    struct dirent *dir_entry;
-
-    
-
-    while( (dir_entry = readdir(path)) ) {
-        printf("%s", dir_entry->d_name);
-        if(dir_entry->d_type == DT_REG) {
-            printf(" [REG]\n");
-        } else if(dir_entry->d_type == DT_DIR) {
-            printf(" [DIR]\n");
-        } else {
-            printf(" [OTHER]\n");
-        }
-    }
-
-
-    printf("\n");
-    i = 0;
-    for (i = 0; i < os_path_list.size(); i++)
-    {
-        printf("PATH[%2d]: %s\n", i, os_path_list[i].c_str());
-    }
-    */
-    /************************************************************************************
-     *   End example code                                                               *
-     ************************************************************************************/
-    
-
-    // Welcome message
+    //Welcome message
     printf("Welcome to OSShell! Please enter your commands ('exit' to quit).\n");
 
-    std::vector<std::string> command_list;      //to store command user types in, split into its variour parameters
-    std::vector<std::string> command_history;   //stores each whole line the user enters
+    std::vector<std::string> command_list;      //Stores the commands the user types in, split into its variour parameters
+    std::vector<std::string> command_history;   //Stores each whole line the user enters
 
     bool exit_program = false;
     do {
@@ -99,44 +55,15 @@ int main (int argc, char **argv)
             if(execute_command(command_list, os_path_list) == -1) {
                 exit_program = true;
             }
-            /*
-            vectorOfStringsToArrayOfCharArrays(command_list, &command_list_exec);   //Turn the command and arguments into their C string version.
-            int pid = fork();
-            //If Process ID is 0 then this process is the child so it should try to run the command with exec.
-            if(pid == 0) {
-                int i = 0;
-                //Try to run exec on each potential path until all paths are exausted.
-                do {
-                //Converts each path obtained from the environment variable into one that includes the command that is attempting to run. Assigns this new path to full_path.
-                    std::string full_path = os_path_list[i];
-                    full_path.append("/");
-                    full_path.append(command_list[0]);
-                //Converts the full_path string into a C string.
-                    char* full_path_c_str = new char [os_path_list[i].size()+command_list[0].size()+1];
-                    std::strcpy(full_path_c_str, full_path.c_str());
-                //Tries to run the command at the created path. If there is no command at this path then the exec will fail and the program will continue until all environment variable paths have been tried.
-                    execv(full_path_c_str, command_list_exec);
-                    i++;
-                } while(i < os_path_list.size());
-                std::cout << command_list[0] << ": Error command not found\n";    //If the program has made it to this point then exec was never able to run so the command does not exist.
-                exit_program = true;    //The child proccess should now end because no command was found to replace its process with.
-            //If the Proccess ID is not 0 then this process is the parent so it should wait for the child process to end.
-            } else {        
-                waitpid(pid, nullptr, 0);
-            }
-            freeArrayOfCharArrays(command_list_exec, command_list.size() + 1);
-            */
         }
-
-
     } while(!exit_program);
     return 0;
 }
 
 
 /* Executes the history command with the corresponding arguments if they are formatted correctly.
- * command_list: list of a command and its arguments
- * command_history: list of previous commands
+ * command_list: list of a command and its arguments.
+ * command_history: list of previous commands.
  * Returns -1 if the history command was improperly formatted and could not be executed.
  * Returns 0 if the command executed successfully.
  */
@@ -179,7 +106,12 @@ void displayHistory(std::vector<std::string>& command_history, int num_of_latest
     }
 }
 
-
+/* Attempts to execute the given command in command list. Searches all location in os_path_list for a corrisponding command.
+ * command_list: list of a command and its arguments.
+ * os_path_list: list of "PATH" paths.
+ * Returns -1 if the child process could not find a command to execute.
+ * Returns 0 after the parent process is done waiting for the child.
+ */
 int execute_command(std::vector<std::string>& command_list, std::vector<std::string>& os_path_list) {
     char **command_list_exec;       //command_list converted to an array of character arrays
     vectorOfStringsToArrayOfCharArrays(command_list, &command_list_exec);   //Turn the command and arguments into their C string version.
