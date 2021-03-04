@@ -7,7 +7,7 @@
 #include <unistd.h>
 #include <sys/wait.h>
 
-int historyCommand(std::vector<std::string>& command_list, std::vector<std::string>& command_history);
+int historyCommand (std::vector<std::string>& command_list, std::vector<std::string>& command_history);
 void displayHistory(std::vector<std::string>& command_history, int num_of_latest_entries);
 int execute_command(std::vector<std::string>& command_list, std::vector<std::string>& os_path_list);
 
