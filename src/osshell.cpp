@@ -6,6 +6,12 @@
 #include <vector>
 #include <unistd.h>
 
+#include <sys/wait.h>
+//#include <dirent.h>
+
+int historyCommand(std::vector<std::string>& command_list, std::vector<std::string>& command_history);
+void displayHistory(std::vector<std::string>& command_history, int num_of_latest_entries);
+
 void splitString(std::string text, char d, std::vector<std::string>& result);
 void vectorOfStringsToArrayOfCharArrays(std::vector<std::string>& list, char ***result);
 void freeArrayOfCharArrays(char **array, size_t array_length);
@@ -21,71 +27,191 @@ int main (int argc, char **argv)
     /************************************************************************************
      *   Example code - remove in actual program                                        *
      ************************************************************************************/
+    /*
     // Shows how to loop over the directories in the PATH environment variable
-    int i;
+    int i = 0;
+
+    //std::string test_path = "/usr/bin";
+    //std::cout << test_path << "\n";
+
+    char *test_path = "/usr/games";
+
+    DIR *path;
+    path = opendir(test_path);
+    struct dirent *dir_entry;
+
+    
+
+    while( (dir_entry = readdir(path)) ) {
+        printf("%s", dir_entry->d_name);
+        if(dir_entry->d_type == DT_REG) {
+            printf(" [REG]\n");
+        } else if(dir_entry->d_type == DT_DIR) {
+            printf(" [DIR]\n");
+        } else {
+            printf(" [OTHER]\n");
+        }
+    }
+
+
+    printf("\n");
+    i = 0;
     for (i = 0; i < os_path_list.size(); i++)
     {
         printf("PATH[%2d]: %s\n", i, os_path_list[i].c_str());
     }
+    */
     /************************************************************************************
      *   End example code                                                               *
      ************************************************************************************/
-
+    
 
     // Welcome message
     printf("Welcome to OSShell! Please enter your commands ('exit' to quit).\n");
 
-    std::vector<std::string> command_list; // to store command user types in, split into its variour parameters
-    char **command_list_exec; // command_list converted to an array of character arrays
-    // Repeat:
-    //  Print prompt for user input: "osshell> " (no newline)
-    //  Get user input for next command
-    //  If command is `exit` exit loop / quit program
-    //  If command is `history` print previous N commands
-    //  For all other commands, check if an executable by that name is in one of the PATH directories
-    //   If yes, execute it
-    //   If no, print error statement: "<command_name>: Error command not found" (do include newline)
+    std::vector<std::string> command_list;      //to store command user types in, split into its variour parameters
+    std::vector<std::string> command_history;   //stores each whole line the user enters
+
+    bool exit_program = false;
+    do {
+        std::string user_input;
+        //While user input is empty (meaning the user only hit enter), do not print a specific error, just re-display "osshell> ".
+        do {    
+            printf("osshell> ");
+            getline(std::cin, user_input);
+        } while(user_input.empty());
+
+        command_history.push_back(user_input);          //Add the new user input to the command history.
+        splitString(user_input, ' ', command_list);     //Split the user input up into its command and the parameters for this command.
+
+        //If the user entered "exit" as the command, then exit the program.
+        if(command_list[0] == "exit") {
+            exit_program = true;
+        //If the user entered "history" as the command, then run the historyCommand function.
+        } else if(command_list[0] == "history") {
+            //If the history command returned -1 then it failed to execute so print an error.
+            if(historyCommand(command_list, command_history) == -1) {
+                printf("Error: history expects an integer > 0 (or 'clear')\n");
+            }
+        //If the user entered anything else, then search for a command with that name in all of the environment variable paths.
+        } else {
+            //If execute_program returns -1, then the child process could not find a command to execute so the child process should end.
+            if(execute_command(command_list, os_path_list) == -1) {
+                exit_program = true;
+            }
+            /*
+            vectorOfStringsToArrayOfCharArrays(command_list, &command_list_exec);   //Turn the command and arguments into their C string version.
+            int pid = fork();
+            //If Process ID is 0 then this process is the child so it should try to run the command with exec.
+            if(pid == 0) {
+                int i = 0;
+                //Try to run exec on each potential path until all paths are exausted.
+                do {
+                //Converts each path obtained from the environment variable into one that includes the command that is attempting to run. Assigns this new path to full_path.
+                    std::string full_path = os_path_list[i];
+                    full_path.append("/");
+                    full_path.append(command_list[0]);
+                //Converts the full_path string into a C string.
+                    char* full_path_c_str = new char [os_path_list[i].size()+command_list[0].size()+1];
+                    std::strcpy(full_path_c_str, full_path.c_str());
+                //Tries to run the command at the created path. If there is no command at this path then the exec will fail and the program will continue until all environment variable paths have been tried.
+                    execv(full_path_c_str, command_list_exec);
+                    i++;
+                } while(i < os_path_list.size());
+                std::cout << command_list[0] << ": Error command not found\n";    //If the program has made it to this point then exec was never able to run so the command does not exist.
+                exit_program = true;    //The child proccess should now end because no command was found to replace its process with.
+            //If the Proccess ID is not 0 then this process is the parent so it should wait for the child process to end.
+            } else {        
+                waitpid(pid, nullptr, 0);
+            }
+            freeArrayOfCharArrays(command_list_exec, command_list.size() + 1);
+            */
+        }
 
 
-    /************************************************************************************
-     *   Example code - remove in actual program                                        *
-     ************************************************************************************/
-    // Shows how to split a command and prepare for the execv() function
-    std::string example_command = "ls -lh";
-    splitString(example_command, ' ', command_list);
-    vectorOfStringsToArrayOfCharArrays(command_list, &command_list_exec);
-    // use `command_list_exec` in the execv() function rather than looping and printing
-    i = 0;
-    while (command_list_exec[i] != NULL)
-    {
-        printf("CMD[%2d]: %s\n", i, command_list_exec[i]);
-        i++;
-    }
-    // free memory for `command_list_exec`
-    freeArrayOfCharArrays(command_list_exec, command_list.size() + 1);
-    printf("------\n");
-
-    // Second example command - reuse the `command_list` and `command_list_exec` variables
-    example_command = "echo \"Hello world\" I am alive!";
-    splitString(example_command, ' ', command_list);
-    vectorOfStringsToArrayOfCharArrays(command_list, &command_list_exec);
-    // use `command_list_exec` in the execv() function rather than looping and printing
-    i = 0;
-    while (command_list_exec[i] != NULL)
-    {
-        printf("CMD[%2d]: %s\n", i, command_list_exec[i]);
-        i++;
-    }
-    // free memory for `command_list_exec`
-    freeArrayOfCharArrays(command_list_exec, command_list.size() + 1);
-    printf("------\n");
-    /************************************************************************************
-     *   End example code                                                               *
-     ************************************************************************************/
-
-
+    } while(!exit_program);
     return 0;
 }
+
+
+/* Executes the history command with the corresponding arguments if they are formatted correctly.
+ * command_list: list of a command and its arguments
+ * command_history: list of previous commands
+ * Returns -1 if the history command was improperly formatted and could not be executed.
+ * Returns 0 if the command executed successfully.
+ */
+int historyCommand(std::vector<std::string>& command_list, std::vector<std::string>& command_history) {
+    //If the history command has some sort of argument, then try to check that argument.
+    if(command_list.size() > 1) {
+        //If something was entered after the first argument, then the command is invalid.
+        if(command_list.size() > 2) {
+            return -1;
+        }
+        //If the argument is "clear" then clear the history. Otherwise the argument is expected to be an integer.
+        if(command_list[1] == "clear") {
+            command_history.clear();
+        } else {
+            //Manually check to make sure every character in the first argument is an integer.
+            for(int i=0; i<command_list[1].size(); i++) {
+                if(command_list[1][i] < 48 || command_list[1][i] > 57) {
+                    return -1;
+                }
+            }
+            //If every character is an integer, then the argument can be converted to an int.
+            int num_of_latest_entries;
+            num_of_latest_entries = std::stoi(command_list[1]);
+
+            //If the integer is outside the bounds of the number of history entries, then the command is invalid.
+            if(num_of_latest_entries < 1 || num_of_latest_entries > command_history.size()-1) {
+                return -1;
+            }
+            //If the function has not returned by this point, then the history can be displayed to the specified number of entries.
+            displayHistory(command_history, num_of_latest_entries+1);
+        }
+    } else {
+        displayHistory(command_history, command_history.size());    //Displays all history entries.
+    }
+    return 0;
+}
+void displayHistory(std::vector<std::string>& command_history, int num_of_latest_entries) {
+    for(int i=command_history.size()-num_of_latest_entries; i<command_history.size()-1; i++) {
+        std::cout << "  " << i+1 << ": " << command_history[i] << "\n";
+    }
+}
+
+
+int execute_command(std::vector<std::string>& command_list, std::vector<std::string>& os_path_list) {
+    char **command_list_exec;       //command_list converted to an array of character arrays
+    vectorOfStringsToArrayOfCharArrays(command_list, &command_list_exec);   //Turn the command and arguments into their C string version.
+    int pid = fork();
+    //If Process ID is 0 then this process is the child so it should try to run the command with exec.
+    if(pid == 0) {
+        //Try to run exec on each potential path until all paths are exausted.
+        int i = 0;
+        do {
+        //Converts each path obtained from the environment variable into one that includes the command that is attempting to run. Assigns this new path to full_path.
+            std::string full_path = os_path_list[i];
+            full_path.append("/");
+            full_path.append(command_list[0]);
+        //Converts the full_path string into a C string.
+            char* full_path_c_str = new char [os_path_list[i].size()+command_list[0].size()+1];
+            std::strcpy(full_path_c_str, full_path.c_str());
+        //Tries to run the command at the created path. If there is no command at this path then the exec will fail and the program will continue until all environment variable paths have been tried.
+            execv(full_path_c_str, command_list_exec);
+            i++;
+        } while(i < os_path_list.size());
+        std::cout << command_list[0] << ": Error command not found\n";    //If the program has made it to this point then exec was never able to run so the command does not exist.
+        freeArrayOfCharArrays(command_list_exec, command_list.size() + 1);
+        return -1;    //The child proccess should now end because no command was found to replace its process with.
+
+    //If the Proccess ID is not 0 then this process is the parent so it should wait for the child process to end.
+    } else {        
+        waitpid(pid, nullptr, 0);
+    }
+    freeArrayOfCharArrays(command_list_exec, command_list.size() + 1);
+    return 0;
+}
+
 
 /*
    text: string to split
@@ -148,6 +274,7 @@ void splitString(std::string text, char d, std::vector<std::string>& result)
     }
 }
 
+
 /*
    list: vector of strings to convert to an array of character arrays
    result: pointer to an array of character arrays when the vector of strings is copied to
@@ -164,6 +291,7 @@ void vectorOfStringsToArrayOfCharArrays(std::vector<std::string>& list, char ***
     }
     (*result)[list.size()] = NULL;
 }
+
 
 /*
    array: list of strings (array of character arrays) to be freed
