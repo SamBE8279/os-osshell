@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <fstream>
+#include <iomanip>
 
 int historyCommand(std::vector<std::string>& command_list, std::vector<std::string>& command_history);
 void displayHistory(std::vector<std::string>& command_history, int num_of_latest_entries);
@@ -32,7 +33,7 @@ int main(int argc, char **argv)
     std::vector<std::string> command_list;      //Stores the commands the user types in, split into its variour parameters
     std::vector<std::string> command_history;   //Stores each whole line the user enters
 
-    textFileToVector(command_history);
+    textFileToVector(command_history);          //Reads in a text file called "history.txt" and assigns each line to command_history.
 
     bool exit_program = false;
     do {
@@ -64,7 +65,7 @@ int main(int argc, char **argv)
         }
     } while(!exit_program);
 
-    vectorToTextFile(command_history);
+    vectorToTextFile(command_history);          //Writes each string in command_history to a line in a text files called "history.txt"
     return 0;
 }
 
@@ -110,7 +111,8 @@ int historyCommand(std::vector<std::string>& command_list, std::vector<std::stri
 }
 void displayHistory(std::vector<std::string>& command_history, int num_of_latest_entries) {
     for(int i=command_history.size()-num_of_latest_entries; i<command_history.size()-1; i++) {
-        std::cout << "  " << i+1 << ": " << command_history[i] << "\n";
+        std::cout << std::setfill (' ') << std::setw (3);
+        std::cout << i+1 << ": " << command_history[i] << "\n";
     }
 }
 
