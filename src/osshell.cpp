@@ -6,10 +6,14 @@
 #include <vector>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <fstream>
 
-int historyCommand (std::vector<std::string>& command_list, std::vector<std::string>& command_history);
+int historyCommand(std::vector<std::string>& command_list, std::vector<std::string>& command_history);
 void displayHistory(std::vector<std::string>& command_history, int num_of_latest_entries);
-int execute_command(std::vector<std::string>& command_list, std::vector<std::string>& os_path_list);
+int executeCommand(std::vector<std::string>& command_list, std::vector<std::string>& os_path_list);
+
+void vectorToTextFile(std::vector<std::string> list);
+void textFileToVector(std::vector<std::string>& result);
 
 void splitString(std::string text, char d, std::vector<std::string>& result);
 void vectorOfStringsToArrayOfCharArrays(std::vector<std::string>& list, char ***result);
@@ -27,6 +31,8 @@ int main(int argc, char **argv)
 
     std::vector<std::string> command_list;      //Stores the commands the user types in, split into its variour parameters
     std::vector<std::string> command_history;   //Stores each whole line the user enters
+
+    textFileToVector(command_history);
 
     bool exit_program = false;
     do {
@@ -52,11 +58,13 @@ int main(int argc, char **argv)
         //If the user entered anything else, then search for a command with that name in all of the environment variable paths.
         } else {
             //If execute_program returns -1, then the child process could not find a command to execute so the child process should end.
-            if(execute_command(command_list, os_path_list) == -1) {
+            if(executeCommand(command_list, os_path_list) == -1) {
                 exit_program = true;
             }
         }
     } while(!exit_program);
+
+    vectorToTextFile(command_history);
     return 0;
 }
 
@@ -112,12 +120,30 @@ void displayHistory(std::vector<std::string>& command_history, int num_of_latest
  * Returns -1 if the child process could not find a command to execute.
  * Returns 0 after the parent process is done waiting for the child.
  */
-int execute_command(std::vector<std::string>& command_list, std::vector<std::string>& os_path_list) {
+int executeCommand(std::vector<std::string>& command_list, std::vector<std::string>& os_path_list) {
     char **command_list_exec;       //command_list converted to an array of character arrays
     vectorOfStringsToArrayOfCharArrays(command_list, &command_list_exec);   //Turn the command and arguments into their C string version.
     int pid = fork();
     //If Process ID is 0 then this process is the child so it should try to run the command with exec.
     if(pid == 0) {
+
+        //If the command starts with a "." or "/" then treat the command as a path.
+        if(command_list[0][0] == '.' || command_list[0][0] == '/') {
+            int index_of_slash = command_list[0].find_last_of('/');
+            //If the path ends with a slash then no command can be obtained after it so the child process should end.
+            if(index_of_slash < command_list[0].length()-1) {
+                int length_of_command = command_list[0].length()-index_of_slash-1;
+                char *path = command_list_exec[0];
+                char command[length_of_command+1];
+                command_list[0].copy(command, length_of_command, index_of_slash+1);
+                command[length_of_command] = '\0';
+                command_list_exec[0] = command;
+                execv(path, command_list_exec);
+            }
+            std::cout << command_list[0] << ": Error command not found\n";
+            return -1;
+        }
+        
         //Try to run exec on each potential path until all paths are exausted.
         int i = 0;
         do {
@@ -204,6 +230,44 @@ void splitString(std::string text, char d, std::vector<std::string>& result)
     {
         result.push_back(token);
     }
+}
+
+
+/*
+	list: vector of strings to be copied to a text file
+*/
+void vectorToTextFile(std::vector<std::string> list)
+{
+	std::ofstream hist_file;
+	hist_file.open("history.txt");
+	if (hist_file.is_open())
+	{
+		int i;
+		for (i = 0; i < list.size(); i++)
+		{
+			hist_file << list[i] << "\n";
+		}
+		hist_file.close();
+	}
+	else std::cout <<"UNABLE TO OPEN FILE";
+}
+
+
+/*
+	result: vector of strings to be filled with lines from history file
+*/
+void textFileToVector(std::vector<std::string>& result)
+{
+	std::string line;
+	std::ifstream hist_file;
+	hist_file.open("history.txt");
+	if (hist_file.is_open())
+	{
+		while (getline(hist_file,line))
+		{
+			result.push_back(line);
+		}
+	}
 }
 
 
